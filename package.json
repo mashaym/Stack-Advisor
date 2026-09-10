@@ -3,6 +3,10 @@
   "displayName": "Stack-Advisor",
   "description": "Helps vibe coders make technical decisions",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mashaym/Stack-Advisor.git"
+  },
   "engines": {
     "vscode": "^1.136.0"
   },
