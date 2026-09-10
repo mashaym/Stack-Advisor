@@ -4,6 +4,8 @@ Stack Advisor is a VS Code extension that helps "vibe coders" — people who bui
 
 You answer five quick questions about what you're building, and Stack Advisor sends them (along with a lightweight summary of your currently open workspace, if any) to the Gemini API using your own API key. It comes back with a recommended stack — frontend, backend/language, database, and hosting — with the reasoning and trade-offs spelled out for each choice, so you can push back on it instead of just accepting it.
 
+**Why I built this:** As more people build software by describing it to an AI, they can get almost anything made — but they're often stuck judging the technical decisions the AI makes for them, especially the tech stack. Stack Advisor helps them make that call with understanding, not blind trust.
+
 ## Features
 
 - **Guided questionnaire** — a simple panel asks what you're building, expected user count, timeline, budget, and your comfort level with managing infrastructure.
@@ -27,7 +29,7 @@ You answer five quick questions about what you're building, and Stack Advisor se
 ## Getting Started
 
 1. Install the extension.
-2. Run **Stack Advisor: Set API Key** from the Command Palette and paste in your Gemini API key.
+2. Open the panel with `Stack Advisor: Open Panel`, then click **Set API Key** in the panel (or run `Stack Advisor: Set API Key` from the Command Palette) and paste in your Gemini API key.
 3. Run **Stack Advisor: Open Panel** to launch the questionnaire.
 4. Answer the questions and click **Get My Recommendation**.
 
@@ -50,7 +52,7 @@ npm install
 npm run compile   # or: npm run watch
 ```
 
-Press `F5` in VS Code to launch an Extension Development Host and try it out. Run `npm run lint` and `npm test` before submitting changes.
+Press `F5` in VS Code to launch an Extension Development Host and try it out. Run `npm run lint` before submitting changes.
 
 ## License
 

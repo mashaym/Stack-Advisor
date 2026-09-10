@@ -11,6 +11,7 @@ export interface StackAnswers {
 	timeline: string;
 	budget: string;
 	serverComfort: string;
+	techComfort: string;
 }
 
 // Maps the short codes the form sends into readable phrases for the prompt
@@ -45,6 +46,14 @@ const SERVER_COMFORT_TEXT: Record<string, string> = {
 	very: 'is very comfortable managing servers'
 };
 
+const TECH_COMFORT_TEXT: Record<string, string> = {
+	js: 'is mostly comfortable with JavaScript / web technologies',
+	python: 'is mostly comfortable with Python',
+	several: 'has a little familiarity with several languages',
+	new: 'is new to coding and relies on AI to write the code',
+	other: 'has other or unspecified technical comfort (prefers not to say)'
+};
+
 function buildPrompt(answers: StackAnswers, projectContext: string | null): string {
 	const projectContextSection = projectContext
 		? `\n\nThey also have a project already open in their editor. Here is what can be\nseen about it — take it into account (e.g. build on what's already there\nrather than suggesting something redundant), but still say so if their\nanswers suggest a different direction would actually serve them better:\n\n${projectContext}`
@@ -70,6 +79,12 @@ other (e.g. a tiny budget but expecting thousands of users), say so honestly
 instead of forcing one clean answer — name the tension or gap, and explain what
 decision or piece of information would resolve it.
 
+Factor in what they're already comfortable with technically: lean toward
+technologies that match their existing experience when that fits their other
+answers well, but if stepping outside their comfort zone would clearly serve
+them better, recommend that instead and explain plainly why the extra learning
+is worth it.
+
 End your response with a short "Bottom line:" line summarizing the recommended
 stack in one plain sentence, on top of the detailed reasoning above it.
 
@@ -81,7 +96,8 @@ Their answers:
 - Expected users at first: ${USER_COUNT_TEXT[answers.userCount] ?? answers.userCount}
 - Timeline to a working version: ${TIMELINE_TEXT[answers.timeline] ?? answers.timeline}
 - Budget for hosting and tools: ${BUDGET_TEXT[answers.budget] ?? answers.budget}
-- Comfort managing servers/infrastructure themselves: ${SERVER_COMFORT_TEXT[answers.serverComfort] ?? answers.serverComfort}${projectContextSection}`;
+- Comfort managing servers/infrastructure themselves: ${SERVER_COMFORT_TEXT[answers.serverComfort] ?? answers.serverComfort}
+- Existing technical comfort: ${TECH_COMFORT_TEXT[answers.techComfort] ?? answers.techComfort}${projectContextSection}`;
 }
 
 export async function getStackRecommendation(

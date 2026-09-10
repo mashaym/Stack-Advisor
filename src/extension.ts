@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { getStackRecommendation } from './geminiClient';
 import { renderMarkdown } from './markdown';
-import { getProjectContext } from './projectContext';
+import { getProjectContext, getProjectSummaryLabel } from './projectContext';
 
 // The key name SecretStorage stores the API key under (not the API key itself)
 const API_KEY_SECRET = 'stackAdvisor.geminiApiKey';
@@ -36,6 +36,12 @@ export function activate(context: vscode.ExtensionContext) {
 			if (message.command === 'requestApiKeyStatus') {
 				const hasKey = !!(await context.secrets.get(API_KEY_SECRET));
 				panel.webview.postMessage({ command: 'apiKeyStatus', hasKey });
+				return;
+			}
+
+			if (message.command === 'requestProjectSummary') {
+				const label = await getProjectSummaryLabel();
+				panel.webview.postMessage({ command: 'projectSummary', label });
 				return;
 			}
 
@@ -137,6 +143,12 @@ function getWebviewContent(): string {
 
 			.intro-card { margin-bottom: 1.25rem; }
 
+			.project-summary-line {
+				color: var(--vscode-descriptionForeground);
+				font-size: 0.85rem;
+				margin: 0 0 1rem;
+			}
+
 			.api-key-row {
 				display: flex;
 				align-items: center;
@@ -214,6 +226,8 @@ function getWebviewContent(): string {
 			explained, so you learn enough to push back on it.
 		</div>
 
+		<p id="projectSummary" class="project-summary-line">📁 Checking your project…</p>
+
 		<div class="api-key-row">
 			<span id="apiKeyStatus" class="key-status">Checking API key…</span>
 			<button id="setApiKeyButton" class="secondary-button">Set API Key</button>
@@ -266,6 +280,17 @@ function getWebviewContent(): string {
 				</select>
 			</div>
 
+			<div class="question">
+				<label for="techComfort">What are you already comfortable with?</label>
+				<select id="techComfort">
+					<option value="js">Mostly JavaScript / web technologies</option>
+					<option value="python">Mostly Python</option>
+					<option value="several">A little of several languages</option>
+					<option value="new">I'm new to coding — I rely on AI</option>
+					<option value="other">Other / prefer not to say</option>
+				</select>
+			</div>
+
 			<button id="submit" class="primary-button">Get My Recommendation</button>
 		</div>
 
@@ -279,9 +304,13 @@ function getWebviewContent(): string {
 			const resultDiv = document.getElementById('result');
 			const apiKeyStatusEl = document.getElementById('apiKeyStatus');
 			const setApiKeyButton = document.getElementById('setApiKeyButton');
+			const projectSummaryEl = document.getElementById('projectSummary');
 
 			// Ask the extension whether a key is already stored, as soon as we load
 			vscodeApi.postMessage({ command: 'requestApiKeyStatus' });
+
+			// Ask the extension what it detected about the open workspace, if any
+			vscodeApi.postMessage({ command: 'requestProjectSummary' });
 
 			setApiKeyButton.addEventListener('click', () => {
 				vscodeApi.postMessage({ command: 'openSetApiKey' });
@@ -297,7 +326,8 @@ function getWebviewContent(): string {
 					userCount: document.getElementById('userCount').value,
 					timeline: document.getElementById('timeline').value,
 					budget: document.getElementById('budget').value,
-					serverComfort: document.getElementById('serverComfort').value
+					serverComfort: document.getElementById('serverComfort').value,
+					techComfort: document.getElementById('techComfort').value
 				};
 				vscodeApi.postMessage({ command: 'submitAnswers', answers });
 			});
@@ -309,6 +339,10 @@ function getWebviewContent(): string {
 				if (message.command === 'apiKeyStatus') {
 					apiKeyStatusEl.textContent = message.hasKey ? 'API key: set ✓' : 'API key: not set';
 					apiKeyStatusEl.className = 'key-status ' + (message.hasKey ? 'set' : 'not-set');
+				} else if (message.command === 'projectSummary') {
+					projectSummaryEl.textContent = message.label
+						? '📁 Detected: ' + message.label
+						: '📁 No project detected — recommendations will be based on your answers only.';
 				} else if (message.command === 'showLoading') {
 					resultDiv.innerHTML = '<p class="status">Thinking…</p>';
 				} else if (message.command === 'showResult') {
