@@ -49,7 +49,10 @@ npm install
 npm run compile   # or: npm run watch
 ```
 
-Press `F5` in VS Code to launch an Extension Development Host and try it out. Run `npm run lint` and `npm test` before submitting changes.
+Press `F5` in VS Code to launch an Extension Development Host and try it out. Run `npm run lint` before submitting changes.
+
+## Why I built this
+As more people build software by describing it to an AI, they can get almost anything made — but they're often stuck judging the technical decisions the AI makes for them, especially the tech stack. Stack Advisor helps them make that call with understanding, not blind trust.
 
 ## License
 
