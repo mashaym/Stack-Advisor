@@ -17,6 +17,8 @@ You answer five quick questions about what you're building, and Stack Advisor se
 
 ![Stack Advisor questionnaire panel](media/panel-screenshot.png)
 
+![Stack Advisor recommendation result](media/result-screenshot.png)
+
 ## Requirements
 
 - A [Gemini API key](https://aistudio.google.com/app/apikey) (free tier works). Nothing else to install — the extension has no other runtime dependencies.
