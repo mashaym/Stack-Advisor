@@ -65,7 +65,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 			try {
 				const projectContext = await getProjectContext();
-				console.log('PROJECT CONTEXT SENT:', projectContext);
 				const recommendation = await getStackRecommendation(message.answers, apiKey, projectContext);
 				panel.webview.postMessage({ command: 'showResult', html: renderMarkdown(recommendation) });
 			} catch (err) {
