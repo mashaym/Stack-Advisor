@@ -15,11 +15,9 @@ You answer five quick questions about what you're building, and Stack Advisor se
 ## Screenshots
 
 ### Input
-
 ![Stack Advisor questionnaire panel](media/panel-screenshot.png)
 
 ### Output
-
 ![Stack Advisor recommendation result](media/result-screenshot.png)
 
 ## Requirements
