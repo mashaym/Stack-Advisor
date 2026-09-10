@@ -26,10 +26,9 @@ You answer five quick questions about what you're building, and Stack Advisor se
 
 ## Getting Started
 
-1. Install the extension.
-2. Run **Stack Advisor: Set API Key** from the Command Palette and paste in your Gemini API key.
-3. Run **Stack Advisor: Open Panel** to launch the questionnaire.
-4. Answer the questions and click **Get My Recommendation**.
+Install the extension.
+Open the panel with Stack Advisor: Open Panel, then click Set API Key in the panel (or run Stack Advisor: Set API Key from the Command Palette) and paste in your Gemini API key.
+Answer the questions and click Get My Recommendation.
 
 ## Commands
 
