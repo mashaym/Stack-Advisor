@@ -12,10 +12,13 @@ You answer five quick questions about what you're building, and Stack Advisor se
 - **Honest about tension** — if your answers conflict (e.g. a tiny budget but thousands of expected users) or are too vague, it says so instead of forcing a clean answer.
 - **Bring your own API key** — your Gemini API key is stored using VS Code's encrypted `SecretStorage`, never sent anywhere except directly to Google's API.
 
-## Screenshot
-## INPUT
+## Screenshots
+
+### Input
 
 ![Stack Advisor questionnaire panel](media/panel-screenshot.png)
+
+### Output
 
 ![Stack Advisor recommendation result](media/result-screenshot.png)
 
