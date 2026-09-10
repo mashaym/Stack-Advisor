@@ -12,6 +12,10 @@ You answer five quick questions about what you're building, and Stack Advisor se
 - **Honest about tension** — if your answers conflict (e.g. a tiny budget but thousands of expected users) or are too vague, it says so instead of forcing a clean answer.
 - **Bring your own API key** — your Gemini API key is stored using VS Code's encrypted `SecretStorage`, never sent anywhere except directly to Google's API.
 
+## Screenshot
+
+![Stack Advisor questionnaire panel](media/panel-screenshot.png)
+
 ## Requirements
 
 - A [Gemini API key](https://aistudio.google.com/app/apikey) (free tier works). Nothing else to install — the extension has no other runtime dependencies.
