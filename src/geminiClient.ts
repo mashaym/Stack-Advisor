@@ -100,11 +100,40 @@ Their answers:
 - Existing technical comfort: ${TECH_COMFORT_TEXT[answers.techComfort] ?? answers.techComfort}${projectContextSection}`;
 }
 
+// One turn in the back-and-forth with Gemini. Gemini itself has no memory
+// between calls — "continuing a conversation" just means resending every
+// turn so far, tagged with who said it, on every request.
+export interface ConversationMessage {
+	role: 'user' | 'model';
+	text: string;
+}
+
+export interface GeminiExchange {
+	text: string; // Gemini's latest reply, for display
+	history: ConversationMessage[]; // the full conversation so far, for the next follow-up
+}
+
 export async function getStackRecommendation(
 	answers: StackAnswers,
 	apiKey: string,
 	projectContext: string | null
-): Promise<string> {
+): Promise<GeminiExchange> {
+	const history: ConversationMessage[] = [{ role: 'user', text: buildPrompt(answers, projectContext) }];
+	const reply = await callGemini(history, apiKey);
+	return { text: reply, history: [...history, { role: 'model', text: reply }] };
+}
+
+export async function getFollowUpAnswer(
+	history: ConversationMessage[],
+	question: string,
+	apiKey: string
+): Promise<GeminiExchange> {
+	const updatedHistory: ConversationMessage[] = [...history, { role: 'user', text: question }];
+	const reply = await callGemini(updatedHistory, apiKey);
+	return { text: reply, history: [...updatedHistory, { role: 'model', text: reply }] };
+}
+
+async function callGemini(history: ConversationMessage[], apiKey: string): Promise<string> {
 	let response: Response;
 
 	try {
@@ -115,7 +144,10 @@ export async function getStackRecommendation(
 				'x-goog-api-key': apiKey
 			},
 			body: JSON.stringify({
-				contents: [{ parts: [{ text: buildPrompt(answers, projectContext) }] }]
+				contents: history.map((message) => ({
+					role: message.role,
+					parts: [{ text: message.text }]
+				}))
 			})
 		});
 	} catch {

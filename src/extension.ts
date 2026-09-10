@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { getStackRecommendation } from './geminiClient';
+import { getStackRecommendation, getFollowUpAnswer, ConversationMessage } from './geminiClient';
 import { renderMarkdown } from './markdown';
 import { getProjectContext, getProjectSummaryLabel } from './projectContext';
 
@@ -31,6 +31,11 @@ export function activate(context: vscode.ExtensionContext) {
 		// Set the HTML content that gets rendered inside the panel
 		panel.webview.html = getWebviewContent();
 
+		// The conversation so far, so follow-up questions can build on the
+		// original recommendation. Lives only as long as this panel is open,
+		// and resets whenever the form is submitted again.
+		let conversationHistory: ConversationMessage[] = [];
+
 		// Listen for messages sent from the webview's JS via postMessage
 		panel.webview.onDidReceiveMessage(async (message) => {
 			if (message.command === 'requestApiKeyStatus') {
@@ -53,9 +58,43 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
+			if (message.command === 'submitFollowup') {
+				const question: string = message.question;
+
+				const apiKey = await context.secrets.get(API_KEY_SECRET);
+				if (!apiKey) {
+					panel.webview.postMessage({
+						command: 'showFollowupError',
+						text: 'No API key found. Click "Set API Key" above first.'
+					});
+					return;
+				}
+
+				if (conversationHistory.length === 0) {
+					panel.webview.postMessage({
+						command: 'showFollowupError',
+						text: 'Get a recommendation first before asking a follow-up.'
+					});
+					return;
+				}
+
+				try {
+					const exchange = await getFollowUpAnswer(conversationHistory, question, apiKey);
+					conversationHistory = exchange.history;
+					panel.webview.postMessage({ command: 'showFollowupResult', html: renderMarkdown(exchange.text) });
+				} catch (err) {
+					const friendlyMessage = err instanceof Error ? err.message : 'Something went wrong calling Gemini.';
+					panel.webview.postMessage({ command: 'showFollowupError', text: friendlyMessage });
+				}
+				return;
+			}
+
 			if (message.command !== 'submitAnswers') {
 				return;
 			}
+
+			// A fresh submission starts a new conversation
+			conversationHistory = [];
 
 			// Show the loading state inside the panel right away
 			panel.webview.postMessage({ command: 'showLoading' });
@@ -71,8 +110,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 			try {
 				const projectContext = await getProjectContext();
-				const recommendation = await getStackRecommendation(message.answers, apiKey, projectContext);
-				panel.webview.postMessage({ command: 'showResult', html: renderMarkdown(recommendation) });
+				const exchange = await getStackRecommendation(message.answers, apiKey, projectContext);
+				conversationHistory = exchange.history;
+				panel.webview.postMessage({ command: 'showResult', html: renderMarkdown(exchange.text) });
 			} catch (err) {
 				const friendlyMessage = err instanceof Error ? err.message : 'Something went wrong calling Gemini.';
 				panel.webview.postMessage({ command: 'showError', text: friendlyMessage });
@@ -209,6 +249,41 @@ function getWebviewContent(): string {
 				border-left: 3px solid var(--vscode-textLink-foreground);
 				border-radius: 4px;
 			}
+
+			#followupSection {
+				margin-top: 1.5rem;
+				padding-top: 1rem;
+				border-top: 1px solid var(--vscode-widget-border);
+			}
+			.followup-label { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--vscode-descriptionForeground); }
+			#followupThread { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 0.75rem; }
+			.followup-question { font-weight: 600; margin: 0 0 0.3rem; font-size: 0.9rem; }
+			.followup-answer { font-size: 0.92rem; line-height: 1.5; }
+			.followup-answer.status { font-style: italic; color: var(--vscode-descriptionForeground); }
+			.followup-answer.error { color: var(--vscode-errorForeground); font-weight: 600; }
+			.followup-answer h2, .followup-answer h3 { font-size: 1rem; margin: 0.6rem 0 0.3rem; }
+			.followup-answer p { margin: 0.4rem 0; }
+			.followup-answer ul { margin: 0.3rem 0 0.6rem; padding-left: 1.3rem; }
+			.followup-answer .bottom-line {
+				font-weight: 600;
+				margin-top: 0.75rem;
+				padding: 0.5rem 0.7rem;
+				background: var(--vscode-textBlockQuote-background);
+				border-left: 3px solid var(--vscode-textLink-foreground);
+				border-radius: 4px;
+			}
+			.followup-input-row { display: flex; gap: 0.5rem; }
+			.followup-input-row input {
+				flex: 1;
+				padding: 0.4rem 0.5rem;
+				background: var(--vscode-input-background);
+				color: var(--vscode-input-foreground);
+				border: 1px solid var(--vscode-dropdown-border);
+				border-radius: 4px;
+				font-family: inherit;
+				font-size: 0.9rem;
+			}
+			.followup-input-row input:disabled { opacity: 0.6; }
 		</style>
 	</head>
 	<body>
@@ -296,6 +371,15 @@ function getWebviewContent(): string {
 
 		<div id="result"></div>
 
+		<div id="followupSection" hidden>
+			<p class="followup-label">Ask a follow-up question about this recommendation:</p>
+			<div id="followupThread"></div>
+			<div class="followup-input-row">
+				<input type="text" id="followupInput" placeholder="e.g. What if I expect more users later?">
+				<button id="followupSend" class="secondary-button">Ask</button>
+			</div>
+		</div>
+
 		<script>
 			// acquireVsCodeApi() gives this page the one and only object it can use
 			// to send messages back to the extension
@@ -305,6 +389,11 @@ function getWebviewContent(): string {
 			const apiKeyStatusEl = document.getElementById('apiKeyStatus');
 			const setApiKeyButton = document.getElementById('setApiKeyButton');
 			const projectSummaryEl = document.getElementById('projectSummary');
+			const followupSection = document.getElementById('followupSection');
+			const followupThread = document.getElementById('followupThread');
+			const followupInput = document.getElementById('followupInput');
+			const followupSendButton = document.getElementById('followupSend');
+			let currentFollowupAnswerEl = null; // the answer element the next reply should fill in
 
 			// Ask the extension whether a key is already stored, as soon as we load
 			vscodeApi.postMessage({ command: 'requestApiKeyStatus' });
@@ -332,6 +421,42 @@ function getWebviewContent(): string {
 				vscodeApi.postMessage({ command: 'submitAnswers', answers });
 			});
 
+			function sendFollowup() {
+				const question = followupInput.value.trim();
+				if (!question || followupSendButton.disabled) {
+					return;
+				}
+
+				followupInput.disabled = true;
+				followupSendButton.disabled = true;
+
+				const qa = document.createElement('div');
+				qa.className = 'followup-qa';
+
+				const questionEl = document.createElement('p');
+				questionEl.className = 'followup-question';
+				questionEl.textContent = 'You asked: ' + question;
+
+				const answerEl = document.createElement('div');
+				answerEl.className = 'followup-answer status';
+				answerEl.textContent = 'Thinking…';
+
+				qa.appendChild(questionEl);
+				qa.appendChild(answerEl);
+				followupThread.appendChild(qa);
+				currentFollowupAnswerEl = answerEl;
+
+				vscodeApi.postMessage({ command: 'submitFollowup', question });
+				followupInput.value = '';
+			}
+
+			followupSendButton.addEventListener('click', sendFollowup);
+			followupInput.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter') {
+					sendFollowup();
+				}
+			});
+
 			// React to status updates the extension sends back
 			window.addEventListener('message', (event) => {
 				const message = event.data;
@@ -345,9 +470,17 @@ function getWebviewContent(): string {
 						: '📁 No project detected — recommendations will be based on your answers only.';
 				} else if (message.command === 'showLoading') {
 					resultDiv.innerHTML = '<p class="status">Thinking…</p>';
+					// A fresh recommendation is coming — hide and reset any old follow-up thread
+					followupSection.hidden = true;
+					followupThread.innerHTML = '';
+					followupInput.value = '';
+					followupInput.disabled = false;
+					followupSendButton.disabled = false;
+					currentFollowupAnswerEl = null;
 				} else if (message.command === 'showResult') {
 					resultDiv.innerHTML = message.html;
 					submitButton.disabled = false;
+					followupSection.hidden = false; // a recommendation exists now, so follow-ups make sense
 				} else if (message.command === 'showError') {
 					resultDiv.innerHTML = '';
 					const errorParagraph = document.createElement('p');
@@ -355,6 +488,20 @@ function getWebviewContent(): string {
 					errorParagraph.textContent = message.text; // textContent auto-escapes, safe for untrusted text
 					resultDiv.appendChild(errorParagraph);
 					submitButton.disabled = false;
+				} else if (message.command === 'showFollowupResult') {
+					if (currentFollowupAnswerEl) {
+						currentFollowupAnswerEl.className = 'followup-answer';
+						currentFollowupAnswerEl.innerHTML = message.html;
+					}
+					followupInput.disabled = false;
+					followupSendButton.disabled = false;
+				} else if (message.command === 'showFollowupError') {
+					if (currentFollowupAnswerEl) {
+						currentFollowupAnswerEl.className = 'followup-answer error';
+						currentFollowupAnswerEl.textContent = message.text; // textContent auto-escapes
+					}
+					followupInput.disabled = false;
+					followupSendButton.disabled = false;
 				}
 			});
 		</script>
