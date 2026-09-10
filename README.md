@@ -13,6 +13,7 @@ You answer five quick questions about what you're building, and Stack Advisor se
 - **Bring your own API key** — your Gemini API key is stored using VS Code's encrypted `SecretStorage`, never sent anywhere except directly to Google's API.
 
 ## Screenshot
+## INPUT
 
 ![Stack Advisor questionnaire panel](media/panel-screenshot.png)
 
